@@ -75,7 +75,7 @@ exports.applyReferralCode = async (req, res) => {
     const referrer = await User.findOne({ referralCode });
 
     if (!referrer) {
-      return res.status(404).json({
+      return res.status(422).json({
         success: false,
         error: 'Invalid referral code'
       });
