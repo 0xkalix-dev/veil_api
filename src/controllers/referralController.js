@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { calculateTier } = require('../utils/tierUtil');
 
 // Get referral stats
 exports.getReferralStats = async (req, res) => {
@@ -19,8 +20,8 @@ exports.getReferralStats = async (req, res) => {
       lastLoginAt: { $gte: thirtyDaysAgo }
     });
 
-    // Get tier
-    const tier = user.getReferralTier();
+    // Get tier from user model (already calculated and stored)
+    const tier = user.tier;
 
     res.json({
       success: true,
@@ -88,6 +89,9 @@ exports.applyReferralCode = async (req, res) => {
     // Update referrer
     referrer.referralCount += 1;
     referrer.points += 100; // Bonus points for inviting
+
+    // Calculate and update tier based on referral count
+    referrer.tier = calculateTier(referrer.referralCount);
     await referrer.save();
 
     res.json({

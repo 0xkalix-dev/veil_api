@@ -35,6 +35,11 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  tier: {
+    type: String,
+    enum: ['Bronze', 'Silver', 'Gold', 'Diamond'],
+    default: 'Bronze'
+  },
   createdAt: {
     type: Date,
     default: Date.now
@@ -51,14 +56,6 @@ userSchema.methods.generateReferralCode = function() {
     .update(this.walletAddress + Date.now())
     .digest('hex');
   return hash.substring(0, 8).toUpperCase();
-};
-
-// Get referral tier based on referral count
-userSchema.methods.getReferralTier = function() {
-  if (this.referralCount >= 50) return 'Diamond';
-  if (this.referralCount >= 25) return 'Gold';
-  if (this.referralCount >= 10) return 'Silver';
-  return 'Bronze';
 };
 
 // Update lastLoginAt before saving
