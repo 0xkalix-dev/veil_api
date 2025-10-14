@@ -12,8 +12,23 @@ connectDB();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// Middleware - CORS with whitelist
+const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or Postman)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -24,7 +39,9 @@ app.get('/health', (req, res) => {
 
 // Routes
 const authRoutes = require('./routes/auth');
+const referralRoutes = require('./routes/referral');
 app.use('/api/auth', authRoutes);
+app.use('/api/referral', referralRoutes);
 
 // 404 handler
 app.use((req, res) => {
