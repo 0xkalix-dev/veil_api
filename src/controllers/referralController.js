@@ -30,7 +30,8 @@ exports.getReferralStats = async (req, res) => {
         invitedCount: user.referralCount,
         activeCount: activeReferrals,
         pointsEarned: user.points,
-        tier: tier
+        tier: tier,
+        referredBy: user.referredBy || null
       }
     });
   } catch (error) {
@@ -88,7 +89,7 @@ exports.applyReferralCode = async (req, res) => {
 
     // Update referrer
     referrer.referralCount += 1;
-    referrer.points += 100; // Bonus points for inviting
+    referrer.points += 30; // Bonus points for inviting
 
     // Calculate and update tier based on referral count
     referrer.tier = calculateTier(referrer.referralCount);

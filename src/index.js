@@ -40,8 +40,10 @@ app.get('/health', (req, res) => {
 // Routes
 const authRoutes = require('./routes/auth');
 const referralRoutes = require('./routes/referral');
+const missionRoutes = require('./routes/mission');
 app.use('/api/auth', authRoutes);
 app.use('/api/referral', referralRoutes);
+app.use('/api/missions', missionRoutes);
 
 // 404 handler
 app.use((req, res) => {
