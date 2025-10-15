@@ -13,7 +13,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware - CORS with whitelist
-const allowedOrigins = process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim());
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : [];
 
 app.use(cors({
   origin: (origin, callback) => {
