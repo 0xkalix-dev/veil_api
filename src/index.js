@@ -17,14 +17,34 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
   : [];
 
+console.log('🔒 CORS Configuration:');
+console.log('   NODE_ENV:', process.env.NODE_ENV);
+console.log('   Allowed Origins:', allowedOrigins);
+
 app.use(cors({
   origin: (origin, callback) => {
+    console.log('📡 Request from origin:', origin);
+
     // Allow requests with no origin (like mobile apps or Postman)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('   ✅ Allowed (no origin)');
+      return callback(null, true);
+    }
+
+    // In development, allow localhost variants
+    if (process.env.NODE_ENV === 'development') {
+      const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
+      if (isLocalhost) {
+        console.log('   ✅ Allowed (development localhost)');
+        return callback(null, true);
+      }
+    }
 
     if (allowedOrigins.includes(origin)) {
+      console.log('   ✅ Allowed (whitelist)');
       callback(null, true);
     } else {
+      console.log('   ❌ Blocked - not in whitelist');
       callback(new Error('Not allowed by CORS'));
     }
   },
