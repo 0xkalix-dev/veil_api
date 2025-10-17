@@ -74,6 +74,7 @@ const oauthRoutes = require('./routes/oauth');
 const contactRoutes = require('./routes/contact');
 const leaderboardRoutes = require('./routes/leaderboard');
 const rewardsRoutes = require('./routes/rewards');
+const configRoutes = require('./routes/config');
 app.use('/api/auth', authRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/missions', missionRoutes);
@@ -81,6 +82,7 @@ app.use('/api/oauth', oauthRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/rewards', rewardsRoutes);
+app.use('/api/config', configRoutes);
 
 // 404 handler
 app.use((req, res) => {
