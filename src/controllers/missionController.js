@@ -60,10 +60,41 @@ exports.getMissions = async (req, res) => {
       Mission.countDocuments(query)
     ]);
 
+    // Add user participation status to each mission if user is authenticated
+    let missionsWithStatus = missions;
+    if (req.user) {
+      const user = await User.findOne({ walletAddress: req.user.walletAddress });
+      if (user) {
+        // Get all participations for this user for these missions
+        const missionIds = missions.map(m => m._id);
+        const participations = await MissionParticipation.find({
+          user: user._id,
+          mission: { $in: missionIds }
+        });
+
+        // Create a map of mission ID to participation
+        const participationMap = {};
+        participations.forEach(p => {
+          participationMap[p.mission.toString()] = p;
+        });
+
+        // Add participation status to each mission
+        missionsWithStatus = missions.map(mission => {
+          const missionObj = mission.toObject();
+          const participation = participationMap[mission._id.toString()];
+          missionObj.userParticipation = participation ? {
+            status: participation.status,
+            progress: participation.progress
+          } : null;
+          return missionObj;
+        });
+      }
+    }
+
     res.json({
       success: true,
       data: {
-        missions,
+        missions: missionsWithStatus,
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
@@ -375,14 +406,26 @@ exports.submitQuiz = async (req, res) => {
       });
     }
 
-    // Calculate score
+    // Calculate score and track per-question results
     let correctAnswers = 0;
     const questions = mission.quizConfig.questions;
+    const questionResults = [];
 
     answers.forEach((answer, index) => {
-      if (questions[index] && answer.selectedAnswer === questions[index].correctAnswer) {
+      const question = questions[index];
+      const isCorrect = question && answer.selectedAnswer === question.correctAnswer;
+
+      if (isCorrect) {
         correctAnswers++;
       }
+
+      // Store result for each question
+      questionResults.push({
+        questionIndex: index,
+        userAnswer: answer.selectedAnswer,
+        correctAnswer: question ? question.correctAnswer : null,
+        isCorrect
+      });
     });
 
     const score = (correctAnswers / questions.length) * 100;
@@ -428,6 +471,7 @@ exports.submitQuiz = async (req, res) => {
         passed,
         correctAnswers,
         totalQuestions: questions.length,
+        questionResults,
         attemptsUsed: participation.quizAttemptCount,
         attemptsRemaining,
         canRetry: !passed && attemptsRemaining > 0,

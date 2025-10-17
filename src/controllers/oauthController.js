@@ -124,10 +124,8 @@ async function handleTwitterStart(req, res, walletAddress) {
 
     const response = await axios.post(TWITTER_ENDPOINTS.requestToken, null, {
       headers: {
-        ...authHeader
-      },
-      params: {
-        oauth_callback: process.env.TWITTER_CALLBACK_URL
+        ...authHeader,
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
 
