@@ -1,5 +1,30 @@
 const User = require('../models/User');
 const axios = require('axios');
+const OAuth = require('oauth-1.0a');
+const crypto = require('crypto');
+
+// Twitter OAuth 1.0a 설정
+const twitterOAuth = new OAuth({
+  consumer: {
+    key: process.env.TWITTER_API_KEY,
+    secret: process.env.TWITTER_API_SECRET
+  },
+  signature_method: 'HMAC-SHA1',
+  hash_function(base_string, key) {
+    return crypto.createHmac('sha1', key).update(base_string).digest('base64');
+  }
+});
+
+// Twitter API endpoints
+const TWITTER_ENDPOINTS = {
+  requestToken: 'https://api.twitter.com/oauth/request_token',
+  authorize: 'https://api.twitter.com/oauth/authorize',
+  accessToken: 'https://api.twitter.com/oauth/access_token',
+  verifyCredentials: 'https://api.twitter.com/1.1/account/verify_credentials.json'
+};
+
+// 임시 저장소 (실제로는 Redis나 DB 사용 권장)
+const requestTokenStore = new Map();
 
 // OAuth 설정
 const OAUTH_CONFIG = {
@@ -45,6 +70,11 @@ exports.startOAuth = async (req, res) => {
       });
     }
 
+    // Twitter OAuth 1.0a는 별도 처리
+    if (provider === 'twitter') {
+      return handleTwitterStart(req, res, walletAddress);
+    }
+
     const config = OAUTH_CONFIG[provider];
     if (!config) {
       return res.status(400).json({
@@ -79,10 +109,77 @@ exports.startOAuth = async (req, res) => {
   }
 };
 
+// Twitter OAuth 1.0a 시작
+async function handleTwitterStart(req, res, walletAddress) {
+  try {
+    const requestData = {
+      url: TWITTER_ENDPOINTS.requestToken,
+      method: 'POST',
+      data: {
+        oauth_callback: process.env.TWITTER_CALLBACK_URL
+      }
+    };
+
+    const authHeader = twitterOAuth.toHeader(twitterOAuth.authorize(requestData));
+
+    const response = await axios.post(TWITTER_ENDPOINTS.requestToken, null, {
+      headers: {
+        ...authHeader
+      },
+      params: {
+        oauth_callback: process.env.TWITTER_CALLBACK_URL
+      }
+    });
+
+    // Parse response (application/x-www-form-urlencoded)
+    const params = new URLSearchParams(response.data);
+    const oauthToken = params.get('oauth_token');
+    const oauthTokenSecret = params.get('oauth_token_secret');
+
+    if (!oauthToken || !oauthTokenSecret) {
+      throw new Error('Failed to get request token');
+    }
+
+    // 토큰과 지갑 주소를 임시 저장
+    requestTokenStore.set(oauthToken, {
+      tokenSecret: oauthTokenSecret,
+      walletAddress,
+      timestamp: Date.now()
+    });
+
+    // 5분 후 자동 삭제
+    setTimeout(() => {
+      requestTokenStore.delete(oauthToken);
+    }, 5 * 60 * 1000);
+
+    // Authorization URL 생성
+    const authUrl = `${TWITTER_ENDPOINTS.authorize}?oauth_token=${oauthToken}`;
+
+    res.json({
+      success: true,
+      data: {
+        authUrl
+      }
+    });
+  } catch (error) {
+    console.error('Twitter OAuth start error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to start Twitter OAuth'
+    });
+  }
+}
+
 // OAuth 콜백 처리
 exports.handleCallback = async (req, res) => {
   try {
     const { provider } = req.params;
+
+    // Twitter OAuth 1.0a는 별도 처리
+    if (provider === 'twitter') {
+      return handleTwitterCallback(req, res);
+    }
+
     const { code, state } = req.query;
 
     if (!code || !state) {
@@ -272,3 +369,124 @@ exports.getConnectedAccounts = async (req, res) => {
     });
   }
 };
+
+// Twitter OAuth 1.0a 콜백
+async function handleTwitterCallback(req, res) {
+  try {
+    const { oauth_token, oauth_verifier } = req.query;
+
+    if (!oauth_token || !oauth_verifier) {
+      return res.redirect(`${process.env.FRONTEND_URL}/dapp/mypage?oauth=error&message=missing_params`);
+    }
+
+    // 저장된 토큰 정보 가져오기
+    const tokenData = requestTokenStore.get(oauth_token);
+    if (!tokenData) {
+      return res.redirect(`${process.env.FRONTEND_URL}/dapp/mypage?oauth=error&message=token_expired`);
+    }
+
+    const { tokenSecret, walletAddress } = tokenData;
+
+    // Access Token 교환
+    const token = {
+      key: oauth_token,
+      secret: tokenSecret
+    };
+
+    const requestData = {
+      url: TWITTER_ENDPOINTS.accessToken,
+      method: 'POST'
+    };
+
+    const authHeader = twitterOAuth.toHeader(
+      twitterOAuth.authorize(requestData, token)
+    );
+
+    const response = await axios.post(
+      TWITTER_ENDPOINTS.accessToken,
+      null,
+      {
+        headers: {
+          ...authHeader
+        },
+        params: {
+          oauth_verifier
+        }
+      }
+    );
+
+    // Parse access token response
+    const params = new URLSearchParams(response.data);
+    const accessToken = params.get('oauth_token');
+    const accessTokenSecret = params.get('oauth_token_secret');
+    const userId = params.get('user_id');
+    const screenName = params.get('screen_name');
+
+    if (!accessToken || !accessTokenSecret) {
+      return res.redirect(`${process.env.FRONTEND_URL}/dapp/mypage?oauth=error&message=token_exchange_failed`);
+    }
+
+    // 사용자 정보 가져오기
+    const userToken = {
+      key: accessToken,
+      secret: accessTokenSecret
+    };
+
+    const userRequestData = {
+      url: TWITTER_ENDPOINTS.verifyCredentials,
+      method: 'GET'
+    };
+
+    const userAuthHeader = twitterOAuth.toHeader(
+      twitterOAuth.authorize(userRequestData, userToken)
+    );
+
+    const userResponse = await axios.get(TWITTER_ENDPOINTS.verifyCredentials, {
+      headers: {
+        ...userAuthHeader
+      }
+    });
+
+    const userData = {
+      id: userResponse.data.id_str,
+      username: userResponse.data.screen_name,
+      avatar: userResponse.data.profile_image_url_https || null
+    };
+
+    // DB 업데이트
+    const user = await User.findOne({ walletAddress });
+    if (!user) {
+      requestTokenStore.delete(oauth_token);
+      return res.redirect(`${process.env.FRONTEND_URL}/dapp/mypage?oauth=error&message=user_not_found`);
+    }
+
+    // 중복 체크
+    const existingUser = await User.findOne({
+      'connectedAccounts.twitter.id': userData.id
+    });
+
+    if (existingUser && existingUser.walletAddress !== walletAddress) {
+      requestTokenStore.delete(oauth_token);
+      return res.redirect(`${process.env.FRONTEND_URL}/dapp/mypage?oauth=error&message=account_already_connected`);
+    }
+
+    // connectedAccounts 업데이트
+    user.connectedAccounts.twitter = {
+      id: userData.id,
+      username: userData.username,
+      avatar: userData.avatar,
+      connectedAt: new Date()
+    };
+
+    await user.save();
+
+    // 임시 저장소에서 토큰 삭제
+    requestTokenStore.delete(oauth_token);
+
+    // 성공 리다이렉트
+    res.redirect(`${process.env.FRONTEND_URL}/dapp/mypage?oauth=success&provider=twitter`);
+  } catch (error) {
+    console.error('Twitter callback error:', error);
+    res.redirect(`${process.env.FRONTEND_URL}/dapp/mypage?oauth=error&message=callback_failed`);
+  }
+}

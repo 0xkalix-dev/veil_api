@@ -40,11 +40,18 @@ app.use(cors({
       }
     }
 
-    if (allowedOrigins.includes(origin)) {
+    // 프로덕션에서도 veil.guru 도메인 허용
+    if (origin.includes('veil.guru') || origin.includes('vercel.app')) {
+      console.log('   ✅ Allowed (veil.guru domain)');
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
       console.log('   ✅ Allowed (whitelist)');
       callback(null, true);
     } else {
       console.log('   ❌ Blocked - not in whitelist');
+      console.log('   Allowed Origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -65,11 +72,15 @@ const referralRoutes = require('./routes/referral');
 const missionRoutes = require('./routes/mission');
 const oauthRoutes = require('./routes/oauth');
 const contactRoutes = require('./routes/contact');
+const leaderboardRoutes = require('./routes/leaderboard');
+const rewardsRoutes = require('./routes/rewards');
 app.use('/api/auth', authRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/missions', missionRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/rewards', rewardsRoutes);
 
 // 404 handler
 app.use((req, res) => {

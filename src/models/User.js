@@ -40,6 +40,42 @@ const userSchema = new mongoose.Schema({
     enum: ['Bronze', 'Silver', 'Gold', 'Diamond'],
     default: 'Bronze'
   },
+  claimableTokens: {
+    type: Number,
+    default: 0
+  },
+  claimedTokens: {
+    type: Number,
+    default: 0
+  },
+  streak: {
+    currentStreak: {
+      type: Number,
+      default: 0
+    },
+    longestStreak: {
+      type: Number,
+      default: 0
+    },
+    lastActiveDate: {
+      type: Date,
+      default: null
+    }
+  },
+  vesting: {
+    lockedTokens: {
+      type: Number,
+      default: 0
+    },
+    vestingSchedule: [{
+      amount: Number,
+      unlockDate: Date,
+      claimed: {
+        type: Boolean,
+        default: false
+      }
+    }]
+  },
   connectedAccounts: {
     discord: {
       id: { type: String, default: null },
