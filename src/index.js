@@ -63,9 +63,11 @@ app.get('/health', (req, res) => {
 const authRoutes = require('./routes/auth');
 const referralRoutes = require('./routes/referral');
 const missionRoutes = require('./routes/mission');
+const oauthRoutes = require('./routes/oauth');
 app.use('/api/auth', authRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/missions', missionRoutes);
+app.use('/api/oauth', oauthRoutes);
 
 // 404 handler
 app.use((req, res) => {

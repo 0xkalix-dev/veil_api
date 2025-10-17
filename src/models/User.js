@@ -40,6 +40,38 @@ const userSchema = new mongoose.Schema({
     enum: ['Bronze', 'Silver', 'Gold', 'Diamond'],
     default: 'Bronze'
   },
+  connectedAccounts: {
+    discord: {
+      id: { type: String, default: null },
+      username: { type: String, default: null },
+      avatar: { type: String, default: null },
+      connectedAt: { type: Date, default: null }
+    },
+    youtube: {
+      id: { type: String, default: null },
+      channelName: { type: String, default: null },
+      avatar: { type: String, default: null },
+      connectedAt: { type: Date, default: null }
+    },
+    twitter: {
+      id: { type: String, default: null },
+      username: { type: String, default: null },
+      avatar: { type: String, default: null },
+      connectedAt: { type: Date, default: null }
+    },
+    instagram: {
+      id: { type: String, default: null },
+      username: { type: String, default: null },
+      avatar: { type: String, default: null },
+      connectedAt: { type: Date, default: null }
+    },
+    tiktok: {
+      id: { type: String, default: null },
+      username: { type: String, default: null },
+      avatar: { type: String, default: null },
+      connectedAt: { type: Date, default: null }
+    }
+  },
   createdAt: {
     type: Date,
     default: Date.now
