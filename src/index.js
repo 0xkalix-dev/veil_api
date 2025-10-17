@@ -64,10 +64,12 @@ const authRoutes = require('./routes/auth');
 const referralRoutes = require('./routes/referral');
 const missionRoutes = require('./routes/mission');
 const oauthRoutes = require('./routes/oauth');
+const contactRoutes = require('./routes/contact');
 app.use('/api/auth', authRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/missions', missionRoutes);
 app.use('/api/oauth', oauthRoutes);
+app.use('/api/contact', contactRoutes);
 
 // 404 handler
 app.use((req, res) => {
