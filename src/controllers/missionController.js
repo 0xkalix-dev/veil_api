@@ -340,10 +340,11 @@ exports.submitQuiz = async (req, res) => {
       });
     }
 
+    // Find participation - allow retries for IN_PROGRESS or FAILED status
     const participation = await MissionParticipation.findOne({
       user: user._id,
       mission: req.params.id,
-      status: 'IN_PROGRESS'
+      status: { $in: ['IN_PROGRESS', 'FAILED'] }
     });
 
     if (!participation) {
@@ -362,6 +363,18 @@ exports.submitQuiz = async (req, res) => {
       });
     }
 
+    // Check attempt limit (max 3 attempts)
+    if (participation.quizAttemptCount >= 3) {
+      return res.status(400).json({
+        success: false,
+        error: 'Maximum attempt limit reached (3 attempts)',
+        data: {
+          attemptsUsed: participation.quizAttemptCount,
+          attemptsRemaining: 0
+        }
+      });
+    }
+
     // Calculate score
     let correctAnswers = 0;
     const questions = mission.quizConfig.questions;
@@ -375,21 +388,38 @@ exports.submitQuiz = async (req, res) => {
     const score = (correctAnswers / questions.length) * 100;
     const passed = score >= mission.quizConfig.passingScore;
 
+    // Increment attempt count
+    participation.quizAttemptCount += 1;
+
     // Update participation
     participation.quizAttempt = {
       answers,
       score,
       passed
     };
-    participation.status = passed ? 'COMPLETED' : 'FAILED';
-    participation.progress = 100;
 
     if (passed) {
+      // Perfect score - mission completed
+      participation.status = 'COMPLETED';
+      participation.progress = 100;
       participation.verifiedAt = Date.now();
       participation.verifiedBy = 'AUTO';
+    } else {
+      // Failed this attempt
+      if (participation.quizAttemptCount >= 3) {
+        // Last attempt used - permanent failure
+        participation.status = 'FAILED';
+        participation.progress = 100;
+      } else {
+        // Still has attempts remaining - keep IN_PROGRESS
+        participation.status = 'IN_PROGRESS';
+        participation.progress = 50;
+      }
     }
 
     await participation.save();
+
+    const attemptsRemaining = 3 - participation.quizAttemptCount;
 
     res.json({
       success: true,
@@ -398,6 +428,9 @@ exports.submitQuiz = async (req, res) => {
         passed,
         correctAnswers,
         totalQuestions: questions.length,
+        attemptsUsed: participation.quizAttemptCount,
+        attemptsRemaining,
+        canRetry: !passed && attemptsRemaining > 0,
         participation
       }
     });

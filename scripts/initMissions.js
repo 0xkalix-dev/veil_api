@@ -92,29 +92,18 @@ const sampleMissions = [
     quizConfig: {
       questions: [
         {
-          question: 'What is the primary purpose of VEIL Protocol?',
+          question: 'What is VEIL Protocol\'s main theme and concept?',
           options: [
-            'To create a decentralized mission and rewards platform',
-            'To mine cryptocurrency',
-            'To trade NFTs',
-            'To develop smart contracts'
+            'Traditional finance platform',
+            'Corrupted reality and glitch aesthetics in Web3',
+            'Gaming metaverse',
+            'Social media platform'
           ],
-          correctAnswer: 0,
-          points: 25
+          correctAnswer: 1,
+          points: 20
         },
         {
-          question: 'Which blockchain network does VEIL primarily use for staking?',
-          options: [
-            'Ethereum',
-            'Solana',
-            'BSC (Binance Smart Chain)',
-            'Polygon'
-          ],
-          correctAnswer: 2,
-          points: 25
-        },
-        {
-          question: 'What are the three main types of missions in VEIL Protocol?',
+          question: 'Which three types of missions can you complete in VEIL Protocol?',
           options: [
             'Buy, Sell, Trade',
             'SNS, ONCHAIN, QUIZ',
@@ -122,21 +111,43 @@ const sampleMissions = [
             'Daily, Weekly, Monthly'
           ],
           correctAnswer: 1,
-          points: 25
+          points: 20
         },
         {
-          question: 'What is the native token symbol of VEIL Protocol?',
+          question: 'What blockchain network does VEIL primarily use for on-chain missions?',
           options: [
-            'VIL',
-            'VEIL',
-            'VEL',
-            'VPT'
+            'Ethereum',
+            'Solana',
+            'BSC (Binance Smart Chain)',
+            'Polygon'
+          ],
+          correctAnswer: 2,
+          points: 20
+        },
+        {
+          question: 'How can you earn additional VEIL tokens through the referral system?',
+          options: [
+            'By completing missions alone',
+            'By inviting friends with your referral code',
+            'By holding tokens for 30 days',
+            'By posting on social media'
           ],
           correctAnswer: 1,
-          points: 25
+          points: 20
+        },
+        {
+          question: 'What are the two types of rewards you can earn from completing missions?',
+          options: [
+            'NFTs and tokens',
+            'Badges and achievements',
+            'VEIL tokens and points',
+            'Cash and crypto'
+          ],
+          correctAnswer: 2,
+          points: 20
         }
       ],
-      passingScore: 70
+      passingScore: 100
     },
     antiCheat: {
       minAccountAge: 0,

@@ -56,6 +56,12 @@ const missionParticipationSchema = new mongoose.Schema({
       default: null
     }
   },
+  quizAttemptCount: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 3
+  },
   // Verification
   verifiedAt: {
     type: Date,
