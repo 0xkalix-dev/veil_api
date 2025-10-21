@@ -126,6 +126,48 @@ userSchema.methods.generateReferralCode = function() {
   return hash.substring(0, 8).toUpperCase();
 };
 
+// Update streak on mission completion
+userSchema.methods.updateStreak = function() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Reset to start of day for comparison
+
+  const lastActive = this.streak?.lastActiveDate ? new Date(this.streak.lastActiveDate) : null;
+
+  if (lastActive) {
+    lastActive.setHours(0, 0, 0, 0);
+
+    const daysDiff = Math.floor((today - lastActive) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff === 0) {
+      // Same day - no streak update
+      return false;
+    } else if (daysDiff === 1) {
+      // Consecutive day - increment streak
+      this.streak.currentStreak += 1;
+      this.streak.lastActiveDate = new Date();
+
+      // Update longest streak if needed
+      if (this.streak.currentStreak > this.streak.longestStreak) {
+        this.streak.longestStreak = this.streak.currentStreak;
+      }
+      return true;
+    } else {
+      // Missed days - reset streak to 1
+      this.streak.currentStreak = 1;
+      this.streak.lastActiveDate = new Date();
+      return true;
+    }
+  } else {
+    // First time - initialize streak
+    this.streak = {
+      currentStreak: 1,
+      longestStreak: 1,
+      lastActiveDate: new Date()
+    };
+    return true;
+  }
+};
+
 // Update lastLoginAt before saving
 userSchema.pre('save', async function(next) {
   if (this.isNew) {

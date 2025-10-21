@@ -347,6 +347,14 @@ exports.submitMission = async (req, res) => {
       participation.status = 'COMPLETED';
       participation.verifiedAt = Date.now();
       participation.verifiedBy = 'AUTO_OAUTH';
+
+      // Update streak on mission completion
+      const streakUpdated = user.updateStreak();
+      if (streakUpdated) {
+        await user.save();
+        console.log(`🔥 Streak updated for user ${user.walletAddress}: ${user.streak.currentStreak} days`);
+      }
+
       console.log(`✅ SNS mission auto-completed for user ${user.walletAddress} (OAuth verified)`);
     } else {
       participation.status = 'PENDING_VERIFICATION';
@@ -456,6 +464,13 @@ exports.submitQuiz = async (req, res) => {
       participation.progress = 100;
       participation.verifiedAt = Date.now();
       participation.verifiedBy = 'AUTO';
+
+      // Update streak on quiz completion
+      const streakUpdated = user.updateStreak();
+      if (streakUpdated) {
+        await user.save();
+        console.log(`🔥 Streak updated for user ${user.walletAddress}: ${user.streak.currentStreak} days`);
+      }
     } else {
       // Failed this attempt
       if (participation.quizAttemptCount >= 3) {
