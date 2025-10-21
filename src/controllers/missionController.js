@@ -340,8 +340,17 @@ exports.submitMission = async (req, res) => {
 
     // Update participation with proof
     participation.proof = proof;
-    participation.status = 'PENDING_VERIFICATION';
     participation.progress = 100;
+
+    // Auto-complete SNS missions if OAuth verified
+    if (mission.type === 'SNS' && proof.metadata?.oauthVerified) {
+      participation.status = 'COMPLETED';
+      participation.verifiedAt = Date.now();
+      participation.verifiedBy = 'AUTO_OAUTH';
+      console.log(`✅ SNS mission auto-completed for user ${user.walletAddress} (OAuth verified)`);
+    } else {
+      participation.status = 'PENDING_VERIFICATION';
+    }
 
     await participation.save();
 
