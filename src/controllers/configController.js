@@ -10,7 +10,8 @@ exports.getConfig = async (req, res) => {
       config = await Config.create({
         key: 'global',
         twitterLink: '',
-        contractAddress: ''
+        contractAddress: '',
+        buyLinkUrl: ''
       });
     }
 
@@ -18,7 +19,8 @@ exports.getConfig = async (req, res) => {
       success: true,
       data: {
         twitterLink: config.twitterLink,
-        contractAddress: config.contractAddress
+        contractAddress: config.contractAddress,
+        buyLinkUrl: config.buyLinkUrl
       }
     });
   } catch (error) {
@@ -33,7 +35,7 @@ exports.getConfig = async (req, res) => {
 // Update global config (admin only - you can add auth middleware later)
 exports.updateConfig = async (req, res) => {
   try {
-    const { twitterLink, contractAddress } = req.body;
+    const { twitterLink, contractAddress, buyLinkUrl } = req.body;
 
     let config = await Config.findOne({ key: 'global' });
 
@@ -41,24 +43,28 @@ exports.updateConfig = async (req, res) => {
       config = await Config.create({
         key: 'global',
         twitterLink: twitterLink || '',
-        contractAddress: contractAddress || ''
+        contractAddress: contractAddress || '',
+        buyLinkUrl: buyLinkUrl || ''
       });
     } else {
       if (twitterLink !== undefined) config.twitterLink = twitterLink;
       if (contractAddress !== undefined) config.contractAddress = contractAddress;
+      if (buyLinkUrl !== undefined) config.buyLinkUrl = buyLinkUrl;
       await config.save();
     }
 
     console.log('✅ Config updated:', {
       twitterLink: config.twitterLink,
-      contractAddress: config.contractAddress
+      contractAddress: config.contractAddress,
+      buyLinkUrl: config.buyLinkUrl
     });
 
     res.json({
       success: true,
       data: {
         twitterLink: config.twitterLink,
-        contractAddress: config.contractAddress
+        contractAddress: config.contractAddress,
+        buyLinkUrl: config.buyLinkUrl
       }
     });
   } catch (error) {

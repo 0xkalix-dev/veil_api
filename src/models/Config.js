@@ -14,6 +14,10 @@ const configSchema = new mongoose.Schema({
   contractAddress: {
     type: String,
     default: ''
+  },
+  buyLinkUrl: {
+    type: String,
+    default: ''
   }
 }, {
   timestamps: true
