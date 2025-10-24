@@ -18,8 +18,11 @@ const authMiddleware = async (req, res, next) => {
     // Verify token
     const decoded = verifyAccessToken(token);
 
+    // Normalize wallet address to lowercase for consistency
+    const normalizedAddress = decoded.walletAddress.toLowerCase();
+
     // Find user
-    const user = await User.findOne({ walletAddress: decoded.walletAddress });
+    const user = await User.findOne({ walletAddress: normalizedAddress });
 
     if (!user) {
       return res.status(401).json({

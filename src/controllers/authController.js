@@ -8,7 +8,7 @@ const {
 // Login or register with wallet address
 exports.login = async (req, res) => {
   try {
-    const { walletAddress } = req.body;
+    let { walletAddress } = req.body;
 
     if (!walletAddress) {
       return res.status(400).json({
@@ -16,6 +16,9 @@ exports.login = async (req, res) => {
         error: 'Wallet address is required'
       });
     }
+
+    // Normalize wallet address to lowercase for consistency
+    walletAddress = walletAddress.toLowerCase();
 
     // Find or create user
     let user = await User.findOne({ walletAddress });
@@ -59,7 +62,7 @@ exports.login = async (req, res) => {
 // Logout
 exports.logout = async (req, res) => {
   try {
-    const { walletAddress } = req.body;
+    let { walletAddress } = req.body;
 
     if (!walletAddress) {
       return res.status(400).json({
@@ -67,6 +70,9 @@ exports.logout = async (req, res) => {
         error: 'Wallet address is required'
       });
     }
+
+    // Normalize wallet address to lowercase for consistency
+    walletAddress = walletAddress.toLowerCase();
 
     // Clear refresh token
     await User.findOneAndUpdate(
@@ -103,8 +109,10 @@ exports.refresh = async (req, res) => {
     const decoded = verifyRefreshToken(refreshToken);
 
     // Find user and validate stored refresh token
+    // Normalize wallet address to lowercase for consistency
+    const normalizedAddress = decoded.walletAddress.toLowerCase();
     const user = await User.findOne({
-      walletAddress: decoded.walletAddress,
+      walletAddress: normalizedAddress,
       refreshToken: refreshToken
     });
 
@@ -137,7 +145,9 @@ exports.refresh = async (req, res) => {
 // Get current user info (protected route example)
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findOne({ walletAddress: req.user.walletAddress })
+    // Normalize wallet address to lowercase for consistency
+    const normalizedAddress = req.user.walletAddress.toLowerCase();
+    const user = await User.findOne({ walletAddress: normalizedAddress })
       .select('-refreshToken');
 
     if (!user) {

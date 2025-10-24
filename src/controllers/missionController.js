@@ -1,6 +1,7 @@
 const Mission = require('../models/Mission');
 const MissionParticipation = require('../models/MissionParticipation');
 const User = require('../models/User');
+const twitterVerificationService = require('../services/twitterVerificationService');
 
 // Create a new mission (admin only)
 exports.createMission = async (req, res) => {
@@ -294,6 +295,103 @@ exports.startMission = async (req, res) => {
   }
 };
 
+// Record follow attempt (when user clicks Follow button)
+exports.recordFollowAttempt = async (req, res) => {
+  try {
+    const user = await User.findOne({ walletAddress: req.user.walletAddress });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Find or create participation
+    let participation = await MissionParticipation.findOne({
+      user: user._id,
+      mission: req.params.id
+    });
+
+    if (!participation) {
+      // Create new participation if doesn't exist
+      participation = new MissionParticipation({
+        user: user._id,
+        mission: req.params.id,
+        status: 'IN_PROGRESS',
+        proof: {
+          type: 'URL',
+          value: req.body.targetUrl || '',
+          metadata: {
+            attemptedFollow: true,
+            attemptedAt: new Date()
+          }
+        }
+      });
+
+      // Update mission participants count
+      const mission = await Mission.findById(req.params.id);
+      if (mission) {
+        mission.participants += 1;
+        await mission.save();
+      }
+    } else {
+      // Update existing participation
+      if (!participation.proof) {
+        participation.proof = { metadata: {} };
+      }
+      if (!participation.proof.metadata) {
+        participation.proof.metadata = {};
+      }
+      participation.proof.metadata.attemptedFollow = true;
+      participation.proof.metadata.attemptedAt = new Date();
+    }
+
+    await participation.save();
+
+    res.json({
+      success: true,
+      data: participation
+    });
+  } catch (error) {
+    console.error('Record follow attempt error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to record follow attempt'
+    });
+  }
+};
+
+// Get mission participation status
+exports.getMissionParticipation = async (req, res) => {
+  try {
+    const user = await User.findOne({ walletAddress: req.user.walletAddress });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const participation = await MissionParticipation.findOne({
+      user: user._id,
+      mission: req.params.id
+    });
+
+    res.json({
+      success: true,
+      data: participation
+    });
+  } catch (error) {
+    console.error('Get participation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get participation'
+    });
+  }
+};
+
 // Submit mission completion
 exports.submitMission = async (req, res) => {
   try {
@@ -310,7 +408,7 @@ exports.submitMission = async (req, res) => {
     const participation = await MissionParticipation.findOne({
       user: user._id,
       mission: req.params.id,
-      status: 'IN_PROGRESS'
+      status: { $in: ['IN_PROGRESS', 'PENDING_VERIFICATION'] }
     });
 
     if (!participation) {
@@ -342,8 +440,70 @@ exports.submitMission = async (req, res) => {
     participation.proof = proof;
     participation.progress = 100;
 
-    // Auto-complete SNS missions if OAuth verified
-    if (mission.type === 'SNS' && proof.metadata?.oauthVerified) {
+    // Handle SNS missions with Twitter follow verification
+    if (mission.type === 'SNS' && mission.snsConfig?.actionType === 'FOLLOW') {
+      // Get user's Twitter username from connected accounts
+      const twitterAccount = user.connectedAccounts?.twitter;
+
+      if (!twitterAccount || !twitterAccount.username) {
+        return res.status(400).json({
+          success: false,
+          error: 'Twitter account not connected. Please connect your Twitter account first.'
+        });
+      }
+
+      const userTwitterHandle = twitterAccount.username;
+      const targetTwitterHandle = mission.snsConfig.targetUsername;
+
+      if (!targetTwitterHandle) {
+        return res.status(500).json({
+          success: false,
+          error: 'Mission configuration error: target username not set'
+        });
+      }
+
+      // Verify follow relationship using TwitterAPI.io
+      console.log(`🔍 Verifying Twitter follow: ${userTwitterHandle} -> ${targetTwitterHandle}`);
+      const verificationResult = await twitterVerificationService.verifyTwitterMission(
+        userTwitterHandle,
+        mission.snsConfig
+      );
+
+      if (!verificationResult.success) {
+        // Reset attemptedFollow flag so user can try again
+        if (participation.proof && participation.proof.metadata) {
+          participation.proof.metadata.attemptedFollow = false;
+          participation.proof.metadata.verificationFailed = true;
+          participation.proof.metadata.lastVerificationAttempt = new Date();
+          await participation.save();
+        }
+
+        return res.status(400).json({
+          success: false,
+          error: verificationResult.message || 'Failed to verify follow relationship',
+          data: {
+            canRetry: true,
+            participation
+          }
+        });
+      }
+
+      // Follow verified! Auto-complete mission
+      participation.status = 'COMPLETED';
+      participation.verifiedAt = Date.now();
+      participation.verifiedBy = 'AUTO_TWITTER_API';
+
+      // Update streak on mission completion
+      const streakUpdated = user.updateStreak();
+      if (streakUpdated) {
+        await user.save();
+        console.log(`🔥 Streak updated for user ${user.walletAddress}: ${user.streak.currentStreak} days`);
+      }
+
+      console.log(`✅ Twitter follow verified and mission completed for user ${user.walletAddress}`);
+    }
+    // Auto-complete other SNS missions if OAuth verified
+    else if (mission.type === 'SNS' && proof.metadata?.oauthVerified) {
       participation.status = 'COMPLETED';
       participation.verifiedAt = Date.now();
       participation.verifiedBy = 'AUTO_OAUTH';

@@ -170,6 +170,11 @@ userSchema.methods.updateStreak = function() {
 
 // Update lastLoginAt before saving
 userSchema.pre('save', async function(next) {
+  // Normalize wallet address to lowercase for consistency
+  if (this.walletAddress) {
+    this.walletAddress = this.walletAddress.toLowerCase();
+  }
+
   if (this.isNew) {
     // Generate referral code for new users
     if (!this.referralCode) {
