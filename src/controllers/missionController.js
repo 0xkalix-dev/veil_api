@@ -278,9 +278,7 @@ exports.startMission = async (req, res) => {
 
     await participation.save();
 
-    // Update mission participants count
-    mission.participants += 1;
-    await mission.save();
+    // Note: participants count is updated only when mission is COMPLETED (in submitMission)
 
     res.json({
       success: true,
@@ -296,6 +294,7 @@ exports.startMission = async (req, res) => {
 };
 
 // Record follow attempt (when user clicks Follow button)
+// This is where SNS mission participation is FIRST CREATED (user actually starts the mission)
 exports.recordFollowAttempt = async (req, res) => {
   try {
     const user = await User.findOne({ walletAddress: req.user.walletAddress });
@@ -314,7 +313,8 @@ exports.recordFollowAttempt = async (req, res) => {
     });
 
     if (!participation) {
-      // Create new participation if doesn't exist
+      // 🎯 Create new participation - this is when user ACTUALLY starts SNS mission
+      // (Not when modal opens, but when they click Follow button)
       participation = new MissionParticipation({
         user: user._id,
         mission: req.params.id,
@@ -329,12 +329,7 @@ exports.recordFollowAttempt = async (req, res) => {
         }
       });
 
-      // Update mission participants count
-      const mission = await Mission.findById(req.params.id);
-      if (mission) {
-        mission.participants += 1;
-        await mission.save();
-      }
+      // Note: participants count is updated only when mission is COMPLETED (in submitMission)
     } else {
       // Update existing participation
       if (!participation.proof) {
@@ -493,6 +488,10 @@ exports.submitMission = async (req, res) => {
       participation.verifiedAt = Date.now();
       participation.verifiedBy = 'AUTO_TWITTER_API';
 
+      // Increment mission participants count (completed missions only)
+      mission.participants += 1;
+      await mission.save();
+
       // Update streak on mission completion
       const streakUpdated = user.updateStreak();
       if (streakUpdated) {
@@ -507,6 +506,10 @@ exports.submitMission = async (req, res) => {
       participation.status = 'COMPLETED';
       participation.verifiedAt = Date.now();
       participation.verifiedBy = 'AUTO_OAUTH';
+
+      // Increment mission participants count (completed missions only)
+      mission.participants += 1;
+      await mission.save();
 
       // Update streak on mission completion
       const streakUpdated = user.updateStreak();
@@ -624,6 +627,10 @@ exports.submitQuiz = async (req, res) => {
       participation.progress = 100;
       participation.verifiedAt = Date.now();
       participation.verifiedBy = 'AUTO';
+
+      // Increment mission participants count (completed missions only)
+      mission.participants += 1;
+      await mission.save();
 
       // Update streak on quiz completion
       const streakUpdated = user.updateStreak();
